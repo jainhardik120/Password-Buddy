@@ -31,7 +31,7 @@ interface CredentialsRepository {
     suspend fun createAccount(
         name: String,
         description: String
-    )
+    ) : String
 
     suspend fun createCryptoObject(
         purpose: CryptoPurpose,
@@ -66,9 +66,10 @@ class CredentialsRepositoryImpl @Inject constructor(
         return dao.getAllAccounts()
     }
 
-    override suspend fun createAccount(name: String, description: String) {
+    override suspend fun createAccount(name: String, description: String) : String {
         val accountId = UUID.randomUUID().toString()
         dao.createAccount(CredentialAccount(accountId, name, description))
+        return accountId
     }
 
     override fun getAccountDetails(accountId: String): Flow<CredentialAccount> {

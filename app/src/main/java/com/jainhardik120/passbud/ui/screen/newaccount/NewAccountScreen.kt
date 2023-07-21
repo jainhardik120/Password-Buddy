@@ -25,7 +25,6 @@ fun NavGraphBuilder.addNewAccountScreen(hostState: SnackbarHostState) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewAccountScreen(viewModel : NewAccountViewModel) {
     Column {

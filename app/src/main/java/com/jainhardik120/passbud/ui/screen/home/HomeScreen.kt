@@ -1,27 +1,65 @@
 package com.jainhardik120.passbud.ui.screen.home
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import com.jainhardik120.passbud.R
+import com.jainhardik120.passbud.ui.biometrics.BiometricPromptContainer
+import com.jainhardik120.passbud.ui.biometrics.rememberPromptContainerState
 import com.jainhardik120.passbud.ui.navigation.AppRoutes
+import com.jainhardik120.passbud.ui.screen.account.createPromptInfo
+import kotlinx.coroutines.launch
 
 fun NavGraphBuilder.addHomeScreen(hostState: SnackbarHostState, navigate: (String) -> Unit) {
     composable(
@@ -32,21 +70,54 @@ fun NavGraphBuilder.addHomeScreen(hostState: SnackbarHostState, navigate: (Strin
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: SnackbarHostState) {
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = {navigate(AppRoutes.NewAccount.route)}) {
-                Icon(Icons.Rounded.Add, contentDescription = "Add Icon")
-            }
-        }, snackbarHost = {
-            SnackbarHost(
-                hostState = hostState
+    var sheetExpanded by remember { mutableStateOf(false) }
+    val state by viewModel.state
+    NewAccountSelectionBottomSheet(
+        isShown = sheetExpanded,
+        changeVisibility = { sheetExpanded = it },
+        {}, viewModel::createAccount, viewModel::createAccountAndCredentials
+    )
+
+    val promptContainerState = rememberPromptContainerState()
+    BiometricPromptContainer(
+        promptContainerState,
+        onAuthSucceeded = { cryptoObj ->
+            viewModel.onAuthSucceeded(cryptoObj)
+        },
+        onAuthError = { authErr ->
+            viewModel.onAuthError(authErr.errorCode, authErr.errString)
+        }
+    )
+
+    state.authContext?.let { auth ->
+        LaunchedEffect(key1 = auth) {
+            promptContainerState.authenticate(createPromptInfo(auth.purpose), auth.cryptoObject)
+        }
+    }
+
+    Scaffold(topBar = {
+
+        CenterAlignedTopAppBar(title = {
+            Text(
+                text = LocalContext.current.resources.getString(
+                    R.string.app_name
+                )
             )
-        }) {
+        })
+    }, floatingActionButton = {
+        FloatingActionButton(onClick = { sheetExpanded = !sheetExpanded }) {
+            Icon(Icons.Rounded.Add, contentDescription = "Add Icon")
+        }
+    }, snackbarHost = {
+        SnackbarHost(
+            hostState = hostState
+        )
+    }) {
         Column(Modifier.padding(it)) {
-            val state by viewModel.state
             when (state.appStatus) {
                 AppStatus.READY -> {
                     LazyColumn(content = {
@@ -73,4 +144,291 @@ fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: 
 
         }
     }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+fun NewAccountSelectionBottomSheet(
+    isShown: Boolean,
+    changeVisibility: (Boolean) -> Unit,
+    showHelp: () -> Unit,
+    createAccount: (String, String) -> Unit,
+    createAccountAndCredentials: (String, String, String, String) -> Unit
+) {
+    if (isShown) {
+        var selectedAccountType: AccountTypes by remember { mutableStateOf(AccountTypes.UsernamePassword) }
+        val horizontalPagerState = rememberPagerState()
+        val scope = rememberCoroutineScope()
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true,confirmValueChange = {
+            false
+        })
+
+        @Composable
+        fun CustomButton(shape: RoundedCornerShape, accountType: AccountTypes) {
+            Button(onClick = {
+                selectedAccountType = accountType
+                scope.launch {
+                    horizontalPagerState.animateScrollToPage(1)
+                }
+            }, shape = shape, modifier = Modifier.fillMaxWidth()) {
+                Text(text = accountType.displayName)
+            }
+        }
+
+        fun hideSheet() {
+
+            scope.launch {
+                sheetState.hide()
+                changeVisibility(false)
+            }
+        }
+
+        ModalBottomSheet(onDismissRequest = {
+            changeVisibility(false)
+        }, dragHandle = null, sheetState = sheetState) {
+            Row(
+                Modifier.padding(vertical = 24.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "New Account",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                    if (horizontalPagerState.currentPage == 1) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            IconButton(onClick = {
+                                showHelp()
+                            }) {
+                                Icon(Icons.Rounded.HelpOutline, contentDescription = "Help Icon")
+                            }
+                        }
+                    }
+                }
+            }
+            HorizontalPager(
+                state = horizontalPagerState, pageCount = 2, modifier = Modifier.fillMaxWidth(), userScrollEnabled = false
+            ) { page ->
+                when (page) {
+                    0 -> {
+                        Column(
+                            Modifier
+                                .padding(horizontal = 32.dp)
+                                .padding(bottom = 32.dp)
+                        ) {
+                            CustomButton(
+                                shape = RoundedCornerShape(
+                                    topStart = 16.dp,
+                                    topEnd = 16.dp,
+                                    bottomStart = 4.dp,
+                                    bottomEnd = 4.dp
+                                ), accountType = AccountTypes.UsernamePassword
+                            )
+                            CustomButton(
+                                shape = RoundedCornerShape(4.dp), accountType = AccountTypes.ATMCard
+                            )
+                            CustomButton(
+                                shape = RoundedCornerShape(
+                                    bottomEnd = 16.dp,
+                                    bottomStart = 16.dp,
+                                    topEnd = 4.dp,
+                                    topStart = 4.dp
+                                ), accountType = AccountTypes.Custom
+                            )
+                        }
+                    }
+
+                    1 -> {
+                        when (selectedAccountType) {
+                            AccountTypes.ATMCard -> {
+
+                            }
+                            AccountTypes.Custom -> {
+                                CustomAccountCreate(
+                                    onCancel = {
+                                        hideSheet()
+                                    },
+                                    onConfirmCreate = { name, desc ->
+                                        createAccount(name, desc)
+                                        hideSheet()
+                                    }
+                                )
+                            }
+                            AccountTypes.UsernamePassword -> {
+                                UsernamePasswordAccount(
+                                    onCancel = { hideSheet() },
+                                    onConfirmCreate = { name, desc, username, pass ->
+                                        createAccountAndCredentials(name, desc, username, pass)
+                                        hideSheet()
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    else -> {
+
+                    }
+                }
+            }
+
+        }
+    }
+}
+
+@Composable
+fun CustomAccountCreate(
+    onCancel: () -> Unit,
+    onConfirmCreate: ((String, String) -> Unit)
+) {
+    var accountName by remember { mutableStateOf("") }
+    var accountDescription by remember { mutableStateOf("") }
+    val spacing = 20.dp
+    Column(
+        Modifier
+            .padding(spacing)
+            .fillMaxWidth()
+    ) {
+        CustomTextField(
+            value = accountName,
+            onValueChange = { accountName = it },
+            label = { Text(text = "Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(spacing))
+        CustomTextField(
+            value = accountDescription,
+            onValueChange = { accountDescription = it },
+            label = { Text(text = "Description (optional)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(spacing))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            OutlinedButton(onClick = { onCancel() }) {
+                Text(text = "Cancel")
+            }
+            Spacer(modifier = Modifier.width(spacing))
+            Button(
+                onClick = { onConfirmCreate(accountName, accountDescription) },
+                enabled = accountName.isNotEmpty()
+            ) {
+                Text(text = "Create")
+            }
+        }
+    }
+
+}
+
+@Composable
+fun UsernamePasswordAccount(
+    onCancel: () -> Unit,
+    onConfirmCreate: (String, String, String, String) -> Unit
+) {
+    var accountName by remember { mutableStateOf("") }
+    var accountDescription by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    val spacing = 20.dp
+    Column(
+        Modifier
+            .padding(spacing)
+            .fillMaxWidth()
+    ) {
+        CustomTextField(
+            value = accountName,
+            onValueChange = { accountName = it },
+            label = { Text(text = "Account Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(spacing))
+        CustomTextField(
+            value = accountDescription,
+            onValueChange = { accountDescription = it },
+            label = { Text(text = "Description (optional)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(spacing))
+        CustomTextField(
+            value = username,
+            onValueChange = { username = it },
+            label = { Text(text = "Username") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(spacing))
+        CustomTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text(text = "Password") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(spacing))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            OutlinedButton(onClick = { onCancel() }) {
+                Text(text = "Cancel")
+            }
+            Spacer(modifier = Modifier.width(spacing))
+            Button(
+                onClick = { onConfirmCreate(accountName, accountDescription, username, password) },
+                enabled = accountName.isNotEmpty() && username.isNotEmpty() && password.isNotEmpty()
+            ) {
+                Text(text = "Create")
+            }
+        }
+    }
+
+}
+
+@Composable
+fun CustomTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    readOnly: Boolean = false,
+    label: @Composable (() -> Unit)? = null,
+    isError: Boolean = false,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    singleLine: Boolean = false,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    minLines: Int = 1,
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        enabled = enabled,
+        readOnly = readOnly,
+        label = label,
+        isError = isError,
+        visualTransformation = visualTransformation,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        singleLine = singleLine,
+        maxLines = maxLines,
+        minLines = minLines
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun CustomAccountPreview() {
+    CustomAccountCreate(onCancel = {}, onConfirmCreate = { _, _ -> })
+}
+
+@Preview(showBackground = true)
+@Composable
+fun UsernamePasswordPreview() {
+    UsernamePasswordAccount(onCancel = {}, onConfirmCreate = { _, _, _, _ -> })
+}
+
+sealed class AccountTypes(val displayName: String) {
+    object UsernamePassword : AccountTypes("Username & Password")
+    object ATMCard : AccountTypes("ATM Card")
+    object Custom : AccountTypes("Custom")
 }
