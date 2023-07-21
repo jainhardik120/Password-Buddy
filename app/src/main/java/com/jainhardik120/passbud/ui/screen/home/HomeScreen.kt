@@ -20,23 +20,22 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,14 +46,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.jainhardik120.passbud.R
+import com.jainhardik120.passbud.domain.BankCard
 import com.jainhardik120.passbud.ui.biometrics.BiometricPromptContainer
 import com.jainhardik120.passbud.ui.biometrics.rememberPromptContainerState
 import com.jainhardik120.passbud.ui.navigation.AppRoutes
@@ -76,12 +78,6 @@ fun NavGraphBuilder.addHomeScreen(hostState: SnackbarHostState, navigate: (Strin
 fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: SnackbarHostState) {
     var sheetExpanded by remember { mutableStateOf(false) }
     val state by viewModel.state
-    NewAccountSelectionBottomSheet(
-        isShown = sheetExpanded,
-        changeVisibility = { sheetExpanded = it },
-        {}, viewModel::createAccount, viewModel::createAccountAndCredentials
-    )
-
     val promptContainerState = rememberPromptContainerState()
     BiometricPromptContainer(
         promptContainerState,
@@ -116,8 +112,15 @@ fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: 
         SnackbarHost(
             hostState = hostState
         )
-    }) {
-        Column(Modifier.padding(it)) {
+    }) { paddingValues ->
+        Column(Modifier.padding(paddingValues)) {
+            NewAccountSelectionBottomSheet(
+                isShown = sheetExpanded,
+                changeVisibility = { sheetExpanded = it },
+                viewModel::createAccount,
+                viewModel::createAccountAndCredentials,
+                viewModel::createAccountAndCard
+            )
             when (state.appStatus) {
                 AppStatus.READY -> {
                     LazyColumn(content = {
@@ -146,23 +149,19 @@ fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: 
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun NewAccountSelectionBottomSheet(
     isShown: Boolean,
     changeVisibility: (Boolean) -> Unit,
-    showHelp: () -> Unit,
     createAccount: (String, String) -> Unit,
-    createAccountAndCredentials: (String, String, String, String) -> Unit
+    createAccountAndCredentials: (String, String, String, String) -> Unit,
+    createAccountAndCard: (String, String, String) -> Unit
 ) {
     if (isShown) {
         var selectedAccountType: AccountTypes by remember { mutableStateOf(AccountTypes.UsernamePassword) }
         val horizontalPagerState = rememberPagerState()
         val scope = rememberCoroutineScope()
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true,confirmValueChange = {
-            false
-        })
 
         @Composable
         fun CustomButton(shape: RoundedCornerShape, accountType: AccountTypes) {
@@ -177,105 +176,125 @@ fun NewAccountSelectionBottomSheet(
         }
 
         fun hideSheet() {
-
-            scope.launch {
-                sheetState.hide()
-                changeVisibility(false)
-            }
-        }
-
-        ModalBottomSheet(onDismissRequest = {
             changeVisibility(false)
-        }, dragHandle = null, sheetState = sheetState) {
-            Row(
-                Modifier.padding(vertical = 24.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+        }
+        AlertDialog(
+            onDismissRequest = {
+                changeVisibility(false)
+            },
+            properties = DialogProperties(
+                dismissOnBackPress = horizontalPagerState.currentPage == 0,
+                dismissOnClickOutside = horizontalPagerState.currentPage == 0,
+                usePlatformDefaultWidth = false
+            ),
+            modifier = Modifier.padding(14.dp)
+        ) {
+            Surface(
+                shape = AlertDialogDefaults.shape,
+                color = AlertDialogDefaults.containerColor,
+                tonalElevation = AlertDialogDefaults.TonalElevation,
             ) {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "New Account",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                    if (horizontalPagerState.currentPage == 1) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            IconButton(onClick = {
-                                showHelp()
-                            }) {
-                                Icon(Icons.Rounded.HelpOutline, contentDescription = "Help Icon")
-                            }
-                        }
-                    }
-                }
-            }
-            HorizontalPager(
-                state = horizontalPagerState, pageCount = 2, modifier = Modifier.fillMaxWidth(), userScrollEnabled = false
-            ) { page ->
-                when (page) {
-                    0 -> {
-                        Column(
-                            Modifier
-                                .padding(horizontal = 32.dp)
-                                .padding(bottom = 32.dp)
+                Column {
+                    Row(
+                        Modifier.padding(vertical = 24.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            CustomButton(
-                                shape = RoundedCornerShape(
-                                    topStart = 16.dp,
-                                    topEnd = 16.dp,
-                                    bottomStart = 4.dp,
-                                    bottomEnd = 4.dp
-                                ), accountType = AccountTypes.UsernamePassword
-                            )
-                            CustomButton(
-                                shape = RoundedCornerShape(4.dp), accountType = AccountTypes.ATMCard
-                            )
-                            CustomButton(
-                                shape = RoundedCornerShape(
-                                    bottomEnd = 16.dp,
-                                    bottomStart = 16.dp,
-                                    topEnd = 4.dp,
-                                    topStart = 4.dp
-                                ), accountType = AccountTypes.Custom
+                            Text(
+                                text = "New Account",
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
-
-                    1 -> {
-                        when (selectedAccountType) {
-                            AccountTypes.ATMCard -> {
-
+                    HorizontalPager(
+                        state = horizontalPagerState,
+                        pageCount = 2,
+                        modifier = Modifier.fillMaxWidth(),
+                        userScrollEnabled = false
+                    ) { page ->
+                        when (page) {
+                            0 -> {
+                                Column(
+                                    Modifier
+                                        .padding(horizontal = 32.dp)
+                                        .padding(bottom = 20.dp)
+                                ) {
+                                    CustomButton(
+                                        shape = RoundedCornerShape(
+                                            topStart = 16.dp,
+                                            topEnd = 16.dp,
+                                            bottomStart = 4.dp,
+                                            bottomEnd = 4.dp
+                                        ), accountType = AccountTypes.UsernamePassword
+                                    )
+                                    CustomButton(
+                                        shape = RoundedCornerShape(4.dp),
+                                        accountType = AccountTypes.ATMCard
+                                    )
+                                    CustomButton(
+                                        shape = RoundedCornerShape(
+                                            bottomEnd = 16.dp,
+                                            bottomStart = 16.dp,
+                                            topEnd = 4.dp,
+                                            topStart = 4.dp
+                                        ), accountType = AccountTypes.Custom
+                                    )
+                                }
                             }
-                            AccountTypes.Custom -> {
-                                CustomAccountCreate(
-                                    onCancel = {
-                                        hideSheet()
-                                    },
-                                    onConfirmCreate = { name, desc ->
-                                        createAccount(name, desc)
-                                        hideSheet()
+
+                            1 -> {
+                                when (selectedAccountType) {
+                                    AccountTypes.ATMCard -> {
+                                        ATMCardCreate(onCancel = {
+                                            hideSheet()
+                                        }, onConfirmCreate = { n1, n2, c ->
+                                            createAccountAndCard(n1, n2, c)
+                                            hideSheet()
+                                        })
                                     }
-                                )
+
+                                    AccountTypes.Custom -> {
+                                        CustomAccountCreate(
+                                            onCancel = {
+                                                hideSheet()
+                                            },
+                                            onConfirmCreate = { name, desc ->
+                                                createAccount(name, desc)
+                                                hideSheet()
+                                            }
+                                        )
+                                    }
+
+                                    AccountTypes.UsernamePassword -> {
+                                        UsernamePasswordAccount(
+                                            onCancel = { hideSheet() },
+                                            onConfirmCreate = { name, desc, username, pass ->
+                                                createAccountAndCredentials(
+                                                    name,
+                                                    desc,
+                                                    username,
+                                                    pass
+                                                )
+                                                hideSheet()
+                                            }
+                                        )
+                                    }
+                                }
                             }
-                            AccountTypes.UsernamePassword -> {
-                                UsernamePasswordAccount(
-                                    onCancel = { hideSheet() },
-                                    onConfirmCreate = { name, desc, username, pass ->
-                                        createAccountAndCredentials(name, desc, username, pass)
-                                        hideSheet()
-                                    }
-                                )
+
+                            else -> {
+
                             }
                         }
-                    }
-
-                    else -> {
-
                     }
                 }
             }
-
         }
     }
 }
@@ -322,6 +341,130 @@ fun CustomAccountCreate(
     }
 
 }
+
+@Composable
+fun ATMCardCreate(
+    onCancel: () -> Unit,
+    onConfirmCreate: ((String, String, String) -> Unit)
+) {
+    var accountName by remember { mutableStateOf("") }
+    var cardName by remember { mutableStateOf("") }
+    var cardNumber by remember { mutableStateOf("") }
+    var cvv by remember { mutableStateOf("") }
+    var validFrom by remember { mutableStateOf("") }
+    var validThru by remember { mutableStateOf("") }
+    val spacing = 20.dp
+    val validInputRegex: Regex = "[0-9]+".toRegex()
+    Column(
+        Modifier
+            .padding(spacing)
+            .fillMaxWidth()
+    ) {
+        CustomTextField(
+            value = accountName,
+            onValueChange = { accountName = it },
+            label = { Text(text = "Account Name") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(spacing))
+        CustomTextField(
+            value = cardName,
+            onValueChange = { cardName = it },
+            label = { Text(text = "Card Name") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(spacing))
+        Row {
+            CustomTextField(
+                value = cardNumber,
+                onValueChange = { if (it.isEmpty() || (it.length <= 16 && validInputRegex.matches(it))) {
+                    cardNumber = it
+                } },
+                label = { Text(text = "Number") },
+                modifier = Modifier
+                    .weight(6f)
+                    .fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
+            )
+            Spacer(modifier = Modifier.width(spacing))
+            CustomTextField(
+                value = cvv,
+                onValueChange = {
+                    if (it.isEmpty() || (it.length <= 3 && validInputRegex.matches(it))) {
+                        cvv = it
+                    }
+                },
+                label = { Text(text = "CVV") },
+                modifier = Modifier
+                    .weight(3f)
+                    .fillMaxWidth(),
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                placeholder = { Text(text = "123") }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(spacing))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+
+            CustomTextField(
+                value = validFrom,
+                onValueChange = {
+                    if (it.isEmpty() || (it.length <= 4 && validInputRegex.matches(it))) {
+                        validFrom = it
+                    }
+                },
+                label = { Text(text = "Valid From") },
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                placeholder = { Text(text = "MMYY") }
+            )
+            Spacer(modifier = Modifier.width(spacing))
+            CustomTextField(
+                value = validThru,
+                onValueChange = {
+                    if (it.isEmpty() || (it.length <= 4 && validInputRegex.matches(it))) {
+                        validThru = it
+                    }
+                },
+                label = { Text(text = "Valid Thru") },
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                placeholder = { Text(text = "MMYY") }
+            )
+
+        }
+        Spacer(modifier = Modifier.height(spacing))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            OutlinedButton(onClick = { onCancel() }) {
+                Text(text = "Cancel")
+            }
+            Spacer(modifier = Modifier.width(spacing))
+            Button(
+                onClick = {
+                    onConfirmCreate(
+                        accountName,
+                        cardName,
+                        BankCard(cardNumber, validFrom, validThru, cvv).formatToString()
+                    )
+                },
+                enabled = accountName.isNotEmpty() && cardName.isNotEmpty() && cardNumber.isNotEmpty()
+            ) {
+                Text(text = "Create")
+            }
+        }
+    }
+}
+
 
 @Composable
 fun UsernamePasswordAccount(
@@ -372,7 +515,14 @@ fun UsernamePasswordAccount(
             }
             Spacer(modifier = Modifier.width(spacing))
             Button(
-                onClick = { onConfirmCreate(accountName, accountDescription, username, password) },
+                onClick = {
+                    onConfirmCreate(
+                        accountName,
+                        accountDescription,
+                        username,
+                        password
+                    )
+                },
                 enabled = accountName.isNotEmpty() && username.isNotEmpty() && password.isNotEmpty()
             ) {
                 Text(text = "Create")
@@ -395,6 +545,7 @@ fun CustomTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     singleLine: Boolean = false,
+    placeholder: @Composable (() -> Unit)? = null,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     minLines: Int = 1,
 ) {
@@ -406,6 +557,7 @@ fun CustomTextField(
         readOnly = readOnly,
         label = label,
         isError = isError,
+        placeholder = placeholder,
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
@@ -432,3 +584,4 @@ sealed class AccountTypes(val displayName: String) {
     object ATMCard : AccountTypes("ATM Card")
     object Custom : AccountTypes("Custom")
 }
+

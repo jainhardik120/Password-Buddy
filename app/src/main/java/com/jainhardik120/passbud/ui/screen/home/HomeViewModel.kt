@@ -28,7 +28,7 @@ class HomeViewModel @Inject constructor(
     private val _state = mutableStateOf(HomeState())
     val state: State<HomeState> = _state
 
-    private var _pendingEncryptCredential : Credential? = null
+    private var _pendingEncryptCredential: Credential? = null
 
     init {
         credentialsRepository.retrieveAccountsList().onEach {
@@ -64,7 +64,12 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             pendingAuthContext?.let { authContext ->
                 if (authContext.purpose == CryptoPurpose.Encryption) {
-                    _pendingEncryptCredential?.let { credentialsRepository.saveCredential(it, cryptoObject) }
+                    _pendingEncryptCredential?.let {
+                        credentialsRepository.saveCredential(
+                            it,
+                            cryptoObject
+                        )
+                    }
                     _pendingEncryptCredential = null
                 } else {
                     if (cryptoObject != null) {
@@ -111,6 +116,31 @@ class HomeViewModel @Inject constructor(
     fun createAccount(accountName: String, accountDescription: String) {
         viewModelScope.launch {
             credentialsRepository.createAccount(accountName, accountDescription)
+        }
+    }
+
+    fun createAccountAndCard(
+        accountName: String,
+        cardName: String,
+        cardDetails: String
+    ) {
+        viewModelScope.launch {
+            try {
+                val accountId = credentialsRepository.createAccount(accountName, "")
+                _pendingEncryptCredential = Credential(
+                    accountId,
+                    "",
+                    cardName,
+                    cardDetails,
+                    1,
+                    true,
+                    null
+                )
+                _state.value =
+                    _state.value.copy(authContext = prepareAuthContext(CryptoPurpose.Encryption))
+            } catch (e: Exception) {
+                showMessage(e.message ?: "Error Occurred")
+            }
         }
     }
 
