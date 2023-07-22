@@ -1,7 +1,6 @@
 package com.jainhardik120.passbud.data.local
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -42,21 +41,19 @@ interface CredentialsDao {
     suspend fun updateAccount(account: CredentialAccount)
 
     @Query("DELETE FROM credentials_account_table WHERE accountId= :accountId")
-    suspend fun deleteAccount(accountId : String)
+    suspend fun deleteAccount(accountId: String)
 
     @Query("DELETE FROM credential_table WHERE accountId = :accountId")
     suspend fun deleteAccountCredentials(accountId: String)
 
     @Query("DELETE FROM credential_table WHERE credentialId = :credentialId")
-    suspend fun deleteCredential(credentialId : String)
+    suspend fun deleteCredential(credentialId: String)
+
+    @Query("DELETE FROM credential_table")
+    suspend fun deleteAllCredentials()
+
+    @Query("DELETE FROM credentials_account_table")
+    suspend fun deleteAllAccounts()
 
 }
 
-data class AccountWithCredentialCount(
-    val accountId: String,
-    val accountName: String,
-    val accountDescription: String,
-    val encryptedCount: Int,
-    val nonEncryptedCount: Int,
-    val cardsCount: Int
-)

@@ -3,7 +3,12 @@ package com.jainhardik120.passbud.ui.biometrics
 import androidx.biometric.BiometricPrompt
 import androidx.biometric.BiometricPrompt.AuthenticationCallback
 import androidx.biometric.BiometricPrompt.PromptInfo
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.jainhardik120.passbud.util.findActivity
 
@@ -78,7 +83,3 @@ fun rememberPromptContainerState(): BiometricPromptContainerState = remember {
 }
 
 
-data class AuthError(
-    val errorCode: Int,
-    val errString: String
-)

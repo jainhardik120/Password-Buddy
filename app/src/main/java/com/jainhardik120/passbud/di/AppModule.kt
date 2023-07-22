@@ -5,11 +5,8 @@ import android.content.Context
 import androidx.biometric.BiometricManager
 import androidx.room.Room
 import com.jainhardik120.passbud.data.crypto.CryptoEngine
-import com.jainhardik120.passbud.data.local.KeyValueStorage
 import com.jainhardik120.passbud.data.local.CredentialsDatabase
-import com.jainhardik120.passbud.domain.CredentialsRepository
-import com.jainhardik120.passbud.domain.CredentialsRepositoryImpl
-import dagger.Binds
+import com.jainhardik120.passbud.data.local.KeyValueStorage
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -52,10 +49,3 @@ object AppModule {
 }
 
 
-@Module
-@InstallIn(SingletonComponent::class)
-abstract class RepositoryModule {
-    @Binds
-    @Singleton
-    abstract fun bindCredentialsRepository(credentialsRepositoryImpl: CredentialsRepositoryImpl): CredentialsRepository
-}
