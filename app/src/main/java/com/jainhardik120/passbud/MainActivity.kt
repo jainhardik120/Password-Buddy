@@ -1,7 +1,6 @@
 package com.jainhardik120.passbud
 
 import android.os.Bundle
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.WindowCompat

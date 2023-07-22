@@ -66,7 +66,8 @@ fun CheckBoxWithText(
 
 @Composable
 fun PasswordGenerator(
-    onPasswordGenerated: (String) -> Unit = {}
+    onPasswordGenerated: (String) -> Unit = {},
+    shouldGeneratePassword: Boolean = true
 ) {
 
     var numbersChecked by remember { mutableStateOf(true) }
@@ -117,7 +118,9 @@ fun PasswordGenerator(
     }
 
     LaunchedEffect(key1 = Unit, block = {
-        createPassword()
+        if (shouldGeneratePassword) {
+            createPassword()
+        }
     })
 
     Column {

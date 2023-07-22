@@ -24,7 +24,7 @@ fun String.toBankCard(): BankCard? {
     )
 }
 
-fun formatValidFrom(validFrom: String): String {
+fun formatMMYY(validFrom: String): String {
     if (validFrom.isBlank()) return ""
 
     val firstTwoChars = validFrom.take(2)

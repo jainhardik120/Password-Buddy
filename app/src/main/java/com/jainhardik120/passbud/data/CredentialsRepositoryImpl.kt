@@ -126,6 +126,7 @@ class CredentialsRepositoryImpl @Inject constructor(
                 encryptionIv = Base64.encodeToString(encryptedData.iv, Base64.DEFAULT)
             )
         }
+        println("Came here")
         dao.upsertCredential(modifiedCredential)
     }
 

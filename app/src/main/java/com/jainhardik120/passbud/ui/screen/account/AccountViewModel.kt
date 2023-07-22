@@ -1,5 +1,6 @@
 package com.jainhardik120.passbud.ui.screen.account
 
+import android.util.Log
 import androidx.biometric.BiometricPrompt
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
@@ -7,8 +8,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jainhardik120.passbud.data.local.entities.Credential
-import com.jainhardik120.passbud.data.local.entities.CredentialAccount
 import com.jainhardik120.passbud.domain.CredentialsRepository
+import com.jainhardik120.passbud.ui.biometrics.AuthContext
 import com.jainhardik120.passbud.ui.snackbar.SnackbarManager
 import com.jainhardik120.passbud.util.CryptoPurpose
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,7 +17,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,11 +26,8 @@ class AccountViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-
-
     private val _uiEvent = Channel<UiEvent>()
     val uiEvent = _uiEvent.receiveAsFlow()
-
 
     private fun sendUiEvent(event: UiEvent) {
         viewModelScope.launch {
@@ -40,13 +37,13 @@ class AccountViewModel @Inject constructor(
 
     private val _state = mutableStateOf(AccountState())
     val state: State<AccountState> = _state
-
     private var _decryptIndex = -1
 
-
+    private var pendingEncryptionCredential: Credential? = null
 
     init {
         val accountId = savedStateHandle.get<String>("accountId")
+        Log.d("TAG", "accountId: $accountId")
         if (accountId == null) {
             sendUiEvent(UiEvent.NavigateUp)
         } else {
@@ -57,43 +54,26 @@ class AccountViewModel @Inject constructor(
                     _state.value = _state.value.copy(account = it)
                 }
             }.launchIn(viewModelScope)
-            credentialsRepository.getAccountCredentials(accountId).onEach {
-                _state.value = _state.value.copy(credentials = it)
+            credentialsRepository.getAccountCredentials(accountId).onEach { credentialList ->
+                _state.value =
+                    _state.value.copy(credentials = credentialList.map { Pair(it, false) })
             }.launchIn(viewModelScope)
         }
     }
 
-    fun onEvent(event: AccountEvent) {
-        when (event) {
-            is AccountEvent.EditCredentialEncryptedChanged -> {
-                _state.value = _state.value.copy(editCredentialEncrypted = event.encrypted)
-            }
 
-            is AccountEvent.EditCredentialKeyChanged -> {
-                _state.value = _state.value.copy(editCredentialKey = event.key)
-            }
-
-            is AccountEvent.EditCredentialTypeChanged -> {
-                _state.value = _state.value.copy(editCredentialType = event.type)
-            }
-
-            is AccountEvent.EditCredentialValueChanged -> {
-                _state.value = _state.value.copy(editCredentialValue = event.value)
-            }
-        }
-    }
-
-    fun saveNewKey() {
+    fun saveNewKey(credential: Credential) {
         viewModelScope.launch {
-            if (_state.value.editCredentialEncrypted) {
+            if (credential.isEncrypted) {
                 try {
+                    pendingEncryptionCredential = credential
                     _state.value =
                         _state.value.copy(authContext = prepareAuthContext(CryptoPurpose.Encryption))
                 } catch (e: Exception) {
                     showMessage(e.message ?: "Error Occurred")
                 }
             } else {
-                saveCredential()
+                saveCredential(credential)
             }
         }
     }
@@ -110,7 +90,10 @@ class AccountViewModel @Inject constructor(
         viewModelScope.launch {
             pendingAuthContext?.let { authContext ->
                 if (authContext.purpose == CryptoPurpose.Encryption) {
-                    saveCredential(cryptoObject)
+                    pendingEncryptionCredential?.let {
+                        saveCredential(it, cryptoObject)
+                    }
+                    pendingEncryptionCredential = null
                 } else {
                     if (cryptoObject != null) {
                         decryptCredential(cryptoObject)
@@ -132,12 +115,16 @@ class AccountViewModel @Inject constructor(
     private suspend fun decryptCredential(cryptoObject: BiometricPrompt.CryptoObject) {
         try {
             val decrypted = credentialsRepository.decryptCredential(
-                _state.value.credentials[_decryptIndex].credentialValue,
+                _state.value.credentials[_decryptIndex].first.credentialValue,
                 cryptoObject
             )
             _state.value =
                 _state.value.copy(credentials = _state.value.credentials.mapIndexed { index, credential ->
-                    if (index != _decryptIndex) credential else credential.copy(credentialValue = decrypted)
+                    if (index != _decryptIndex) credential else Pair(
+                        credential.first.copy(
+                            credentialValue = decrypted
+                        ), true
+                    )
                 })
         } catch (e: Exception) {
             println(e.printStackTrace())
@@ -145,19 +132,13 @@ class AccountViewModel @Inject constructor(
         }
     }
 
-    private suspend fun saveCredential(cryptoObject: BiometricPrompt.CryptoObject? = null) {
+    private suspend fun saveCredential(
+        credential: Credential,
+        cryptoObject: BiometricPrompt.CryptoObject? = null
+    ) {
         try {
-            val state = _state.value
             credentialsRepository.saveCredential(
-                Credential(
-                    accountId = state.account.accountId,
-                    credentialId = state.editCredentialId,
-                    credentialKey = state.editCredentialKey,
-                    credentialValue = state.editCredentialValue,
-                    credentialType = state.editCredentialType,
-                    isEncrypted = state.editCredentialEncrypted,
-                    encryptionIv = null
-                ), cryptoObject
+                credential, cryptoObject
             )
         } catch (e: Exception) {
             showMessage(e.message ?: "Error Occurred")
@@ -218,7 +199,7 @@ class AccountViewModel @Inject constructor(
                     _state.value.copy(
                         authContext = prepareAuthContext(
                             CryptoPurpose.Decryption,
-                            _state.value.credentials[index].encryptionIv
+                            _state.value.credentials[index].first.encryptionIv
                         )
                     )
             } catch (e: Exception) {
@@ -231,14 +212,3 @@ class AccountViewModel @Inject constructor(
 }
 
 
-sealed class UiEvent {
-    data class Navigate(val route: String) : UiEvent()
-    object NavigateUp : UiEvent()
-}
-
-sealed class AccountEvent() {
-    data class EditCredentialKeyChanged(val key: String) : AccountEvent()
-    data class EditCredentialValueChanged(val value: String) : AccountEvent()
-    data class EditCredentialTypeChanged(val type: Int) : AccountEvent()
-    data class EditCredentialEncryptedChanged(val encrypted: Boolean) : AccountEvent()
-}

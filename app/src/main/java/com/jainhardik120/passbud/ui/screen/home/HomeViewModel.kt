@@ -7,12 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jainhardik120.passbud.data.local.AccountWithCredentialCount
 import com.jainhardik120.passbud.data.local.entities.Credential
-import com.jainhardik120.passbud.data.local.entities.CredentialAccount
 import com.jainhardik120.passbud.domain.BiometricAuthStatus
 import com.jainhardik120.passbud.domain.BiometricInfo
 import com.jainhardik120.passbud.domain.CredentialsRepository
 import com.jainhardik120.passbud.domain.KeyStatus
-import com.jainhardik120.passbud.ui.screen.account.AuthContext
+import com.jainhardik120.passbud.ui.biometrics.AuthContext
 import com.jainhardik120.passbud.ui.snackbar.SnackbarManager
 import com.jainhardik120.passbud.util.CryptoPurpose
 import dagger.hilt.android.lifecycle.HiltViewModel
