@@ -8,17 +8,23 @@ import com.jainhardik120.passbud.util.CryptoPurpose
 
 data class AccountState(
     val credentials: List<Credential> = emptyList(),
-    val account : CredentialAccount = CredentialAccount("", "", ""),
-    val editCredentialKey : String = "",
-    val editCredentialValue : String = "",
-    val editCredentialType : Int = 0,
-    val editCredentialEncrypted : Boolean = true,
-    val editCredentialId : String ="",
-    val authContext: AuthContext? = null
+    val account: CredentialAccount = CredentialAccount("", "", ""),
+    val editCredentialKey: String = "",
+    val editCredentialValue: String = "",
+    val editCredentialType: Int = 0,
+    val editCredentialEncrypted: Boolean = true,
+    val editCredentialId: String = "",
+    val authContext: AuthContext? = null,
+    val shouldShowDeletePrompt: DeleteRequest? = null
 )
 
 
 data class AuthContext(
     val purpose: CryptoPurpose,
     val cryptoObject: BiometricPrompt.CryptoObject
+)
+
+data class DeleteRequest(
+    val isAccount: Boolean,
+    val deleteObjectId: String
 )

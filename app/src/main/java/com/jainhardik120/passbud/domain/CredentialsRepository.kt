@@ -5,6 +5,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import com.jainhardik120.passbud.data.crypto.CryptoEngine
 import com.jainhardik120.passbud.data.crypto.ValidationResult
+import com.jainhardik120.passbud.data.local.AccountWithCredentialCount
 import com.jainhardik120.passbud.data.local.CredentialsDao
 import com.jainhardik120.passbud.data.local.CredentialsDatabase
 import com.jainhardik120.passbud.data.local.entities.Credential
@@ -24,14 +25,22 @@ interface CredentialsRepository {
 
     fun retrieveAccountsList(): Flow<List<CredentialAccount>>
 
-    fun getAccountDetails(accountId: String): Flow<CredentialAccount>
+    fun accountWithCount(): Flow<List<AccountWithCredentialCount>>
+
+    fun getAccountDetails(accountId: String): Flow<CredentialAccount?>
 
     fun getAccountCredentials(accountId: String): Flow<List<Credential>>
+
+    suspend fun deleteAccount(accountId: String)
+
+    suspend fun deleteCredential(credentialId : String)
+
+    suspend fun updateAccountDetails(account: CredentialAccount)
 
     suspend fun createAccount(
         name: String,
         description: String
-    ) : String
+    ): String
 
     suspend fun createCryptoObject(
         purpose: CryptoPurpose,
@@ -44,9 +53,9 @@ interface CredentialsRepository {
     )
 
     suspend fun decryptCredential(
-        encryptedValue : String,
+        encryptedValue: String,
         cryptoObject: BiometricPrompt.CryptoObject
-    )  :String
+    ): String
 }
 
 @Singleton
@@ -57,6 +66,19 @@ class CredentialsRepositoryImpl @Inject constructor(
 ) : CredentialsRepository {
 
 
+    override suspend fun deleteAccount(accountId: String) {
+        dao.deleteAccountCredentials(accountId)
+        dao.deleteAccount(accountId)
+    }
+
+    override suspend fun deleteCredential(credentialId: String) {
+        dao.deleteCredential(credentialId)
+    }
+
+    override suspend fun updateAccountDetails(account: CredentialAccount) {
+        dao.updateAccount(account)
+    }
+
     private val dao: CredentialsDao = credentialsDatabase.dao
     private val requiredAuthenticators: Int = BiometricManager.Authenticators.BIOMETRIC_STRONG
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -66,19 +88,25 @@ class CredentialsRepositoryImpl @Inject constructor(
         return dao.getAllAccounts()
     }
 
-    override suspend fun createAccount(name: String, description: String) : String {
+    override suspend fun createAccount(name: String, description: String): String {
         val accountId = UUID.randomUUID().toString()
         dao.createAccount(CredentialAccount(accountId, name, description))
         return accountId
     }
 
-    override fun getAccountDetails(accountId: String): Flow<CredentialAccount> {
+    override fun accountWithCount(): Flow<List<AccountWithCredentialCount>> {
+        return dao.getAllAccountsWithCredentialCount()
+    }
+
+    override fun getAccountDetails(accountId: String): Flow<CredentialAccount?> {
         return dao.getAccountDetails(accountId)
     }
 
     override fun getAccountCredentials(accountId: String): Flow<List<Credential>> {
         return dao.getAccountCredentials(accountId)
     }
+
+
 
     override suspend fun getBiometricInfo(): BiometricInfo = withContext(dispatcher) {
         val biometricAuthStatus = readBiometricAuthStatus()
@@ -108,7 +136,7 @@ class CredentialsRepositoryImpl @Inject constructor(
     override suspend fun decryptCredential(
         encryptedValue: String,
         cryptoObject: BiometricPrompt.CryptoObject
-    ) : String {
+    ): String {
         validateCryptoLayer()
         val encryptedDecoded = Base64.decode(encryptedValue, Base64.DEFAULT)
         return cryptoEngine.decrypt(encryptedDecoded, cryptoObject)

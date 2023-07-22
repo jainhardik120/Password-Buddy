@@ -28,11 +28,15 @@ fun BiometricPromptContainer(
     }
 
     val showPrompt: Boolean by state.isPromptToShow
-    if(showPrompt){
+    if (showPrompt) {
         val activity = LocalContext.current.findActivity()
-        LaunchedEffect(key1 = state.cryptoObject){
+        LaunchedEffect(key1 = state.cryptoObject) {
             val prompt = BiometricPrompt(activity!!, callback)
-            prompt.authenticate(state.promptInfo!!, state.cryptoObject!!)
+            if (state.cryptoObject == null) {
+                prompt.authenticate(state.promptInfo!!)
+            } else {
+                prompt.authenticate(state.promptInfo!!, state.cryptoObject!!)
+            }
         }
     }
 
@@ -57,7 +61,7 @@ class BiometricPromptContainerState {
     private val _isPromptToShow = mutableStateOf(false)
     val isPromptToShow: State<Boolean> = _isPromptToShow
 
-    fun authenticate(promptInfo: PromptInfo, cryptoObject: BiometricPrompt.CryptoObject){
+    fun authenticate(promptInfo: PromptInfo, cryptoObject: BiometricPrompt.CryptoObject?) {
         this.promptInfo = promptInfo
         this.cryptoObject = cryptoObject
         _isPromptToShow.value = true

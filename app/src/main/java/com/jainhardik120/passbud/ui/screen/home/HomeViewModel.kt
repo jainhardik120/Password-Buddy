@@ -5,6 +5,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jainhardik120.passbud.data.local.AccountWithCredentialCount
 import com.jainhardik120.passbud.data.local.entities.Credential
 import com.jainhardik120.passbud.data.local.entities.CredentialAccount
 import com.jainhardik120.passbud.domain.BiometricAuthStatus
@@ -31,7 +32,7 @@ class HomeViewModel @Inject constructor(
     private var _pendingEncryptCredential: Credential? = null
 
     init {
-        credentialsRepository.retrieveAccountsList().onEach {
+        credentialsRepository.accountWithCount().onEach {
             _state.value = state.value.copy(accounts = it)
         }.launchIn(viewModelScope)
         viewModelScope.launch {
@@ -184,7 +185,7 @@ class HomeViewModel @Inject constructor(
 }
 
 data class HomeState(
-    val accounts: List<CredentialAccount> = emptyList(),
+    val accounts: List<AccountWithCredentialCount> = emptyList(),
     val appStatus: AppStatus = AppStatus.READY,
     val authContext: AuthContext? = null
 )

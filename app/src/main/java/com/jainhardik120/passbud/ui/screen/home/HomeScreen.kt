@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -23,11 +24,13 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -36,8 +39,10 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +50,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -57,6 +64,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.jainhardik120.passbud.R
 import com.jainhardik120.passbud.domain.BankCard
+import com.jainhardik120.passbud.ui.PasswordGenerator
 import com.jainhardik120.passbud.ui.biometrics.BiometricPromptContainer
 import com.jainhardik120.passbud.ui.biometrics.rememberPromptContainerState
 import com.jainhardik120.passbud.ui.navigation.AppRoutes
@@ -95,15 +103,17 @@ fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: 
         }
     }
 
+    val topAppBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
     Scaffold(topBar = {
 
-        CenterAlignedTopAppBar(title = {
+        LargeTopAppBar(title = {
             Text(
                 text = LocalContext.current.resources.getString(
                     R.string.app_name
                 )
             )
-        })
+        }, scrollBehavior = topAppBarScrollBehavior)
     }, floatingActionButton = {
         FloatingActionButton(onClick = { sheetExpanded = !sheetExpanded }) {
             Icon(Icons.Rounded.Add, contentDescription = "Add Icon")
@@ -112,9 +122,12 @@ fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: 
         SnackbarHost(
             hostState = hostState
         )
-    }) { paddingValues ->
+    }, modifier = Modifier
+        .fillMaxSize()
+        .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
+    ) { paddingValues ->
         Column(Modifier.padding(paddingValues)) {
-            NewAccountSelectionBottomSheet(
+            AccountCreationDialog(
                 isShown = sheetExpanded,
                 changeVisibility = { sheetExpanded = it },
                 viewModel::createAccount,
@@ -125,12 +138,62 @@ fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: 
                 AppStatus.READY -> {
                     LazyColumn(content = {
                         itemsIndexed(state.accounts) { _, item ->
-                            Column(Modifier.clickable {
-                                navigate(AppRoutes.AccountScreen.withArgs(item.accountId))
-                            }) {
-                                Text(text = item.accountName)
-                                Text(text = item.accountDescription)
-                                Divider()
+                            Surface(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable {
+                                        navigate(AppRoutes.AccountScreen.withArgs(item.accountId))
+                                    }, color = MaterialTheme.colorScheme.secondaryContainer
+                            ) {
+                                Column(
+                                    Modifier
+                                        .padding(16.dp)
+                                        .fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = item.accountName,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    fun buildAccompanyingText(
+                                        encryptedCount: Int,
+                                        nonEncryptedCount: Int,
+                                        cardsCount: Int
+                                    ): String {
+                                        val counts = mutableListOf<String>()
+                                        if (encryptedCount > 0) {
+                                            counts.add("$encryptedCount Locked Value")
+                                        }
+                                        if (nonEncryptedCount > 0) {
+                                            counts.add("$nonEncryptedCount Open Value")
+                                        }
+                                        if (cardsCount > 0) {
+                                            counts.add("$cardsCount Bank Card")
+                                        }
+                                        if (counts.isEmpty()) {
+                                            return "No Credentials"
+                                        }
+                                        return counts.joinToString(", ")
+                                    }
+
+                                    val accompanyingText by remember(
+                                        item.encryptedCount,
+                                        item.nonEncryptedCount,
+                                        item.cardsCount
+                                    ) {
+                                        mutableStateOf(
+                                            buildAccompanyingText(
+                                                item.encryptedCount,
+                                                item.nonEncryptedCount,
+                                                item.cardsCount
+                                            )
+                                        )
+                                    }
+                                    Text(accompanyingText)
+                                }
                             }
                         }
                     })
@@ -151,7 +214,7 @@ fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun NewAccountSelectionBottomSheet(
+fun AccountCreationDialog(
     isShown: Boolean,
     changeVisibility: (Boolean) -> Unit,
     createAccount: (String, String) -> Unit,
@@ -302,10 +365,17 @@ fun NewAccountSelectionBottomSheet(
 @Composable
 fun CustomAccountCreate(
     onCancel: () -> Unit,
-    onConfirmCreate: ((String, String) -> Unit)
+    onConfirmCreate: ((String, String) -> Unit),
+    confirmButtonText: String = "Create",
+    initialName: String = "",
+    initialDescription: String = "",
 ) {
     var accountName by remember { mutableStateOf("") }
     var accountDescription by remember { mutableStateOf("") }
+    LaunchedEffect(key1 = Unit, block = {
+        accountName = initialName
+        accountDescription = initialDescription
+    })
     val spacing = 20.dp
     Column(
         Modifier
@@ -335,7 +405,7 @@ fun CustomAccountCreate(
                 onClick = { onConfirmCreate(accountName, accountDescription) },
                 enabled = accountName.isNotEmpty()
             ) {
-                Text(text = "Create")
+                Text(text = confirmButtonText)
             }
         }
     }
@@ -379,9 +449,11 @@ fun ATMCardCreate(
         Row {
             CustomTextField(
                 value = cardNumber,
-                onValueChange = { if (it.isEmpty() || (it.length <= 16 && validInputRegex.matches(it))) {
-                    cardNumber = it
-                } },
+                onValueChange = {
+                    if (it.isEmpty() || (it.length <= 16 && validInputRegex.matches(it))) {
+                        cardNumber = it
+                    }
+                },
                 label = { Text(text = "Number") },
                 modifier = Modifier
                     .weight(6f)
@@ -485,7 +557,8 @@ fun UsernamePasswordAccount(
             value = accountName,
             onValueChange = { accountName = it },
             label = { Text(text = "Account Name") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
         Spacer(modifier = Modifier.height(spacing))
         CustomTextField(
@@ -499,15 +572,18 @@ fun UsernamePasswordAccount(
             value = username,
             onValueChange = { username = it },
             label = { Text(text = "Username") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
         Spacer(modifier = Modifier.height(spacing))
         CustomTextField(
             value = password,
             onValueChange = { password = it },
             label = { Text(text = "Password") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
+        PasswordGenerator(onPasswordGenerated = { password = it })
         Spacer(modifier = Modifier.height(spacing))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             OutlinedButton(onClick = { onCancel() }) {
@@ -529,7 +605,6 @@ fun UsernamePasswordAccount(
             }
         }
     }
-
 }
 
 @Composable
@@ -584,4 +659,3 @@ sealed class AccountTypes(val displayName: String) {
     object ATMCard : AccountTypes("ATM Card")
     object Custom : AccountTypes("Custom")
 }
-

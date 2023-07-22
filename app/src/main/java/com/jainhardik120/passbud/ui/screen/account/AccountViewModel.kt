@@ -7,12 +7,15 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jainhardik120.passbud.data.local.entities.Credential
+import com.jainhardik120.passbud.data.local.entities.CredentialAccount
 import com.jainhardik120.passbud.domain.CredentialsRepository
 import com.jainhardik120.passbud.ui.snackbar.SnackbarManager
 import com.jainhardik120.passbud.util.CryptoPurpose
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,18 +27,35 @@ class AccountViewModel @Inject constructor(
 ) : ViewModel() {
 
 
+
+    private val _uiEvent = Channel<UiEvent>()
+    val uiEvent = _uiEvent.receiveAsFlow()
+
+
+    private fun sendUiEvent(event: UiEvent) {
+        viewModelScope.launch {
+            _uiEvent.send(event)
+        }
+    }
+
     private val _state = mutableStateOf(AccountState())
     val state: State<AccountState> = _state
 
     private var _decryptIndex = -1
 
+
+
     init {
         val accountId = savedStateHandle.get<String>("accountId")
         if (accountId == null) {
-            // TODO : Navigate Back
+            sendUiEvent(UiEvent.NavigateUp)
         } else {
             credentialsRepository.getAccountDetails(accountId).onEach {
-                _state.value = _state.value.copy(account = it)
+                if (it == null) {
+                    sendUiEvent(UiEvent.NavigateUp)
+                } else {
+                    _state.value = _state.value.copy(account = it)
+                }
             }.launchIn(viewModelScope)
             credentialsRepository.getAccountCredentials(accountId).onEach {
                 _state.value = _state.value.copy(credentials = it)
@@ -78,9 +98,15 @@ class AccountViewModel @Inject constructor(
         }
     }
 
+    fun deleteResource(isAccount: Boolean, resourceId: String) {
+        _state.value =
+            _state.value.copy(shouldShowDeletePrompt = DeleteRequest(isAccount, resourceId))
+    }
+
     fun onAuthSucceeded(cryptoObject: BiometricPrompt.CryptoObject?) {
         val pendingAuthContext = _state.value.authContext
-        _state.value = _state.value.copy(authContext = null)
+        val pendingDeleteRequest = _state.value.shouldShowDeletePrompt
+        _state.value = _state.value.copy(authContext = null, shouldShowDeletePrompt = null)
         viewModelScope.launch {
             pendingAuthContext?.let { authContext ->
                 if (authContext.purpose == CryptoPurpose.Encryption) {
@@ -90,6 +116,14 @@ class AccountViewModel @Inject constructor(
                         decryptCredential(cryptoObject)
                     }
                     _decryptIndex = -1
+                }
+            }
+            pendingDeleteRequest?.let {
+                println("Delete Request Approved")
+                if (it.isAccount) {
+                    credentialsRepository.deleteAccount(it.deleteObjectId)
+                } else {
+                    credentialsRepository.deleteCredential(it.deleteObjectId)
                 }
             }
         }
@@ -142,6 +176,17 @@ class AccountViewModel @Inject constructor(
         )
     }
 
+    fun updateAccountDetails(name: String, description: String) {
+        viewModelScope.launch {
+            credentialsRepository.updateAccountDetails(
+                _state.value.account.copy(
+                    accountName = name,
+                    accountDescription = description
+                )
+            )
+        }
+    }
+
 
     private fun showMessage(message: String) {
         SnackbarManager.showMessage(message)
@@ -162,7 +207,7 @@ class AccountViewModel @Inject constructor(
         if (_state.value.authContext?.purpose == CryptoPurpose.Decryption) {
             _decryptIndex = -1
         }
-        _state.value = _state.value.copy(authContext = null)
+        _state.value = _state.value.copy(authContext = null, shouldShowDeletePrompt = null)
     }
 
     fun decryptCredentialAt(index: Int) {
@@ -183,6 +228,12 @@ class AccountViewModel @Inject constructor(
             }
         }
     }
+}
+
+
+sealed class UiEvent {
+    data class Navigate(val route: String) : UiEvent()
+    object NavigateUp : UiEvent()
 }
 
 sealed class AccountEvent() {

@@ -7,7 +7,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import com.jainhardik120.passbud.ui.screen.account.addAccountScreen
 import com.jainhardik120.passbud.ui.screen.home.addHomeScreen
-import com.jainhardik120.passbud.ui.screen.newaccount.addNewAccountScreen
 
 @Composable
 fun PassbudAppNavHost(
@@ -22,7 +21,6 @@ fun PassbudAppNavHost(
         startDestination = startDestination
     ) {
         addHomeScreen(hostState = hostState) { navController.navigate(it) }
-        addNewAccountScreen(hostState)
-        addAccountScreen(hostState)
+        addAccountScreen(hostState, navController )
     }
 }
