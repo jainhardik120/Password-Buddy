@@ -30,6 +30,10 @@ class CredentialsRepositoryImpl @Inject constructor(
     credentialsDatabase: CredentialsDatabase,
 ) : CredentialsRepository {
 
+    private val dao: CredentialsDao = credentialsDatabase.dao
+    private val requiredAuthenticators: Int = BiometricManager.Authenticators.BIOMETRIC_STRONG
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+
     override suspend fun deleteAccount(accountId: String) {
         dao.deleteAccountCredentials(accountId)
         dao.deleteAccount(accountId)
@@ -42,11 +46,6 @@ class CredentialsRepositoryImpl @Inject constructor(
     override suspend fun updateAccountDetails(account: CredentialAccount) {
         dao.updateAccount(account)
     }
-
-    private val dao: CredentialsDao = credentialsDatabase.dao
-    private val requiredAuthenticators: Int = BiometricManager.Authenticators.BIOMETRIC_STRONG
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
-
 
     override fun retrieveAccountsList(): Flow<List<CredentialAccount>> {
         return dao.getAllAccounts()
@@ -69,7 +68,6 @@ class CredentialsRepositoryImpl @Inject constructor(
     override fun getAccountCredentials(accountId: String): Flow<List<Credential>> {
         return dao.getAccountCredentials(accountId)
     }
-
 
     override suspend fun getBiometricInfo(): BiometricInfo = withContext(dispatcher) {
         val biometricAuthStatus = readBiometricAuthStatus()
@@ -126,7 +124,6 @@ class CredentialsRepositoryImpl @Inject constructor(
                 encryptionIv = Base64.encodeToString(encryptedData.iv, Base64.DEFAULT)
             )
         }
-        println("Came here")
         dao.upsertCredential(modifiedCredential)
     }
 

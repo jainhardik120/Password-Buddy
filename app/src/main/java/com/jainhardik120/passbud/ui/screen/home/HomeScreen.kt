@@ -62,9 +62,9 @@ import com.jainhardik120.passbud.R
 import com.jainhardik120.passbud.domain.BankCard
 import com.jainhardik120.passbud.ui.PasswordGenerator
 import com.jainhardik120.passbud.ui.biometrics.BiometricPromptContainer
+import com.jainhardik120.passbud.ui.biometrics.createPromptInfo
 import com.jainhardik120.passbud.ui.biometrics.rememberPromptContainerState
 import com.jainhardik120.passbud.ui.navigation.AppRoutes
-import com.jainhardik120.passbud.ui.screen.account.createPromptInfo
 import kotlinx.coroutines.launch
 
 fun NavGraphBuilder.addHomeScreen(hostState: SnackbarHostState, navigate: (String) -> Unit) {
