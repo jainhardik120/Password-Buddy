@@ -10,7 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.jainhardik120.passbud.data.local.entities.Credential
 import com.jainhardik120.passbud.domain.CredentialsRepository
 import com.jainhardik120.passbud.ui.biometrics.AuthContext
-import com.jainhardik120.passbud.ui.snackbar.SnackbarManager
+import com.jainhardik120.passbud.ui.snackbar.SnackBarManager
 import com.jainhardik120.passbud.util.CryptoPurpose
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -170,7 +170,7 @@ class AccountViewModel @Inject constructor(
 
 
     private fun showMessage(message: String) {
-        SnackbarManager.showMessage(message)
+        SnackBarManager.showMessage(message)
     }
 
     fun onAuthError(errorCode: Int, errString: String) {

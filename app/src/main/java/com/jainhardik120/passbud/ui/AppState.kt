@@ -10,7 +10,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.jainhardik120.passbud.ui.snackbar.SnackbarManager
+import com.jainhardik120.passbud.ui.snackbar.SnackBarManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -19,7 +19,7 @@ class AppState(
     val snackBarHostState: SnackbarHostState,
     coroutineScope: CoroutineScope,
     private val resources: Resources,
-    private val snackbarManager: SnackbarManager,
+    private val snackbarManager: SnackBarManager,
 ) {
     init {
         coroutineScope.launch {
@@ -49,7 +49,7 @@ fun rememberAppState(
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
     resources: Resources = resourcesAsComposable(),
 ) = remember(navController, snackBarHostState, coroutineScope, resources) {
-    AppState(navController, snackBarHostState, coroutineScope, resources, SnackbarManager)
+    AppState(navController, snackBarHostState, coroutineScope, resources, SnackBarManager)
 }
 
 @Composable

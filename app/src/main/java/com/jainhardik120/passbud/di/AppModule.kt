@@ -6,7 +6,6 @@ import androidx.biometric.BiometricManager
 import androidx.room.Room
 import com.jainhardik120.passbud.data.crypto.CryptoEngine
 import com.jainhardik120.passbud.data.local.CredentialsDatabase
-import com.jainhardik120.passbud.data.local.KeyValueStorage
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,16 +35,6 @@ object AppModule {
     fun provideBiometricManager(@ApplicationContext context: Context): BiometricManager {
         return BiometricManager.from(context)
     }
-
-    @Provides
-    @Singleton
-    fun provideKeyValueStorage(@ApplicationContext context: Context): KeyValueStorage {
-        val preferences = context.getSharedPreferences("simpleStorage", Context.MODE_PRIVATE)
-        return KeyValueStorage(
-            sharedPreferences = preferences
-        )
-    }
-
 }
 
 

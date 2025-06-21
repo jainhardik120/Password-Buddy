@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -29,42 +30,6 @@ import kotlin.math.roundToInt
 import kotlin.random.Random
 
 @Composable
-fun CheckBoxWithText(
-    checked: Boolean = false,
-    onCheckedChange: (Boolean) -> Unit,
-    text: String
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .toggleable(
-                value = checked,
-                onValueChange = onCheckedChange,
-                role = Role.Checkbox
-            )
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(end = 16.dp)
-        )
-        Spacer(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        )
-        Checkbox(
-            checked = checked,
-            onCheckedChange = null,
-            modifier = Modifier.padding(end = 12.dp)
-        )
-    }
-}
-
-@Composable
 fun PasswordGenerator(
     onPasswordGenerated: (String) -> Unit = {},
     shouldGeneratePassword: Boolean = true
@@ -74,7 +39,7 @@ fun PasswordGenerator(
     var specialCharactersChecked by remember { mutableStateOf(true) }
     var capitalLettersChecked by remember { mutableStateOf(true) }
     var length by remember {
-        mutableStateOf(20f)
+        mutableFloatStateOf(20f)
     }
 
     fun getListOfCharacters(
@@ -164,6 +129,42 @@ fun PasswordGenerator(
                 createPassword()
             },
             modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun CheckBoxWithText(
+    checked: Boolean = false,
+    onCheckedChange: (Boolean) -> Unit,
+    text: String
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .toggleable(
+                value = checked,
+                onValueChange = onCheckedChange,
+                role = Role.Checkbox
+            )
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(end = 16.dp)
+        )
+        Spacer(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        )
+        Checkbox(
+            checked = checked,
+            onCheckedChange = null,
+            modifier = Modifier.padding(end = 12.dp)
         )
     }
 }

@@ -5,14 +5,13 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jainhardik120.passbud.data.local.AccountWithCredentialCount
 import com.jainhardik120.passbud.data.local.entities.Credential
 import com.jainhardik120.passbud.domain.BiometricAuthStatus
 import com.jainhardik120.passbud.domain.BiometricInfo
 import com.jainhardik120.passbud.domain.CredentialsRepository
 import com.jainhardik120.passbud.domain.KeyStatus
 import com.jainhardik120.passbud.ui.biometrics.AuthContext
-import com.jainhardik120.passbud.ui.snackbar.SnackbarManager
+import com.jainhardik120.passbud.ui.snackbar.SnackBarManager
 import com.jainhardik120.passbud.util.CryptoPurpose
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
@@ -54,7 +53,7 @@ class HomeViewModel @Inject constructor(
 
 
     private fun showMessage(message: String) {
-        SnackbarManager.showMessage(message)
+        SnackBarManager.showMessage(message)
     }
 
 
@@ -71,10 +70,6 @@ class HomeViewModel @Inject constructor(
                         )
                     }
                     _pendingEncryptCredential = null
-                } else {
-                    if (cryptoObject != null) {
-
-                    }
                 }
             }
         }
@@ -109,7 +104,7 @@ class HomeViewModel @Inject constructor(
                 }
             )
         if (info.keyStatus == KeyStatus.INVALIDATED) {
-            SnackbarManager.showMessage("Your key was invalidated and app data is reset")
+            SnackBarManager.showMessage("Your key was invalidated and app data is reset")
         }
     }
 
@@ -183,14 +178,3 @@ class HomeViewModel @Inject constructor(
 
 }
 
-data class HomeState(
-    val accounts: List<AccountWithCredentialCount> = emptyList(),
-    val appStatus: AppStatus = AppStatus.READY,
-    val authContext: AuthContext? = null
-)
-
-enum class AppStatus {
-    READY,
-    NOT_READY,
-    UNAVAILABLE
-}

@@ -9,7 +9,7 @@ import com.jainhardik120.passbud.ui.screen.account.addAccountScreen
 import com.jainhardik120.passbud.ui.screen.home.addHomeScreen
 
 @Composable
-fun PassbudAppNavHost(
+fun PassBudAppNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController,
     startDestination: String = AppRoutes.Home.route,

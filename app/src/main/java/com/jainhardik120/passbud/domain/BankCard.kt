@@ -23,16 +23,3 @@ fun String.toBankCard(): BankCard? {
         cvv = parts[3].ifEmpty { null }
     )
 }
-
-fun formatMMYY(validFrom: String): String {
-    if (validFrom.isBlank()) return ""
-
-    val firstTwoChars = validFrom.take(2)
-
-    val remainingChars = validFrom.drop(2)
-    return if (remainingChars.isNotBlank()) {
-        "$firstTwoChars/$remainingChars"
-    } else {
-        firstTwoChars
-    }
-}

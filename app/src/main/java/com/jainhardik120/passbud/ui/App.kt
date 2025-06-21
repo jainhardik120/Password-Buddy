@@ -6,7 +6,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.jainhardik120.passbud.ui.navigation.AppRoutes
-import com.jainhardik120.passbud.ui.navigation.PassbudAppNavHost
+import com.jainhardik120.passbud.ui.navigation.PassBudAppNavHost
 import com.jainhardik120.passbud.ui.theme.PassbudTheme
 
 
@@ -18,7 +18,7 @@ fun App() {
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            PassbudAppNavHost(
+            PassBudAppNavHost(
                 navController = appState.navController,
                 startDestination = AppRoutes.Home.route,
                 hostState = appState.snackBarHostState
