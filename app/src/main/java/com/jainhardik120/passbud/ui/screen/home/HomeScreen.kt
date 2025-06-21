@@ -101,7 +101,8 @@ fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: 
 
     val topAppBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
-    Scaffold(topBar = {
+    Scaffold(
+        topBar = {
 
         LargeTopAppBar(title = {
             Text(
@@ -119,8 +120,8 @@ fun HomeScreen(viewModel: HomeViewModel, navigate: (String) -> Unit, hostState: 
             hostState = hostState
         )
     }, modifier = Modifier
-        .fillMaxSize()
-        .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
+            .fillMaxSize()
+            .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
     ) { paddingValues ->
         Column(Modifier.padding(paddingValues)) {
             AccountCreationDialog(
@@ -219,7 +220,7 @@ fun AccountCreationDialog(
 ) {
     if (isShown) {
         var selectedAccountType: AccountTypes by remember { mutableStateOf(AccountTypes.UsernamePassword) }
-        val horizontalPagerState = rememberPagerState()
+        val horizontalPagerState = rememberPagerState(pageCount = { 2 })
         val scope = rememberCoroutineScope()
 
         @Composable
@@ -273,7 +274,6 @@ fun AccountCreationDialog(
                     }
                     HorizontalPager(
                         state = horizontalPagerState,
-                        pageCount = 2,
                         modifier = Modifier.fillMaxWidth(),
                         userScrollEnabled = false
                     ) { page ->
